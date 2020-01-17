@@ -2,6 +2,7 @@ import copy
 
 from enum import Enum
 from collections import defaultdict
+from itertools import product
 
 
 class Angle(Enum):
@@ -72,7 +73,8 @@ def initial_set(edge, field):
                     field[max(y - 1, 0)][max(x - 1, 0)] = Angle((y == 0) ^ (x != 0))
                     break
                 elif (num == 2 and (x in (0, len(edge) - 1) or y in (0, len(edge) - 1))) or num == 4:
-                    field[y + y_offset][x + x_offset] = Angle(abs(x_offset + y_offset + 1) % 2)
+                    field[y + y_offset][x + x_offset] = Angle(
+                        abs(x_offset + y_offset + 1) % 2)
 
 
 def match(edge, field):
@@ -89,7 +91,8 @@ def match(edge, field):
                 not_touch += field[cy][cx] is Angle(abs(x_offset + y_offset) % 2)
             if c_count == edge[y][x]:
                 for x_offset, y_offset in ((-1, 0), (0, 0), (0, -1), (-1, -1)):
-                    if not 0 <= x + x_offset < len(field) or not 0 <= y + y_offset < len(field):
+                    if not 0 <= x + x_offset < len(field) or not 0 <= y + y_offset < len(
+                            field):
                         continue
                     cx, cy = x + x_offset, y + y_offset
                     if field[cy][cx] is None:
@@ -97,7 +100,8 @@ def match(edge, field):
                         changed = True
             if not_touch == 4 - edge[y][x]:
                 for x_offset, y_offset in ((-1, 0), (0, 0), (0, -1), (-1, -1)):
-                    if not 0 <= x + x_offset < len(field) or not 0 <= y + y_offset < len(field):
+                    if not 0 <= x + x_offset < len(field) or not 0 <= y + y_offset < len(
+                            field):
                         continue
                     cx, cy = x + x_offset, y + y_offset
                     if field[cy][cx] is None:
@@ -110,56 +114,91 @@ def pretty_print(field):
     length = len(field)
     print("-" * (1 + 2 * length))
     for col in field:
-        print(
-            "|{}|".format("".join(map(lambda x: "／" if x is Angle.RIGHT_UP else "＼" if not x is None else "  ", col))))
+        print("|{}|".format("".join(
+            map(
+                lambda x: "／" if x is Angle.RIGHT_UP else "＼" if x is not None else "  ",
+                col))))
     print("-" * (1 + 2 * length))
 
 
+def not_filled(field):
+    no_fill = set()
+    for y, col in enumerate(field):
+        for x, val in enumerate(col):
+            if val is None:
+                no_fill.add((y, x))
+    return no_fill
+
+
 def solve(edge):
+    around_edge = set()
+    for y, col in enumerate(edge):
+        for x, val in enumerate(col):
+            if val < 0:
+                edge[y][x] = float('inf')
+            else:
+                for y_offset, x_offset in product((-1, 0), (-1, 0)):
+                    if not 0 <= x + x_offset < len(edge) + 1 or not 0 <= y + y_offset < len(edge) + 1:
+                        continue
+                    around_edge.add((x + x_offset, y + y_offset))
+
     assert all((len(x) == len(edge[0]) for x in edge))
-    field = [[None for _ in range(len(edge[0]) - 1)] for _ in range(len(edge[0]) - 1)]
+    field = [[None for _ in range(len(edge[0]) - 1)]
+             for _ in range(len(edge[0]) - 1)]
     check(edge, field)
     initial_set(edge, field)
     stack = []
 
     def new_stack():
-        for y, column in enumerate(field):
-            for x, num in enumerate(column):
-                if num is None:
-                    extended = False
-                    new_field_0 = copy.deepcopy(field)
-                    new_field_1 = copy.deepcopy(field)
-                    try:
-                        new_field_0[y][x] = Angle(0)
-                        check(edge, new_field_0)
-                        stack.extend([new_field_0])
-                        extended = True
-                    except AssertionError:
-                        pass
-                    try:
-                        new_field_1[y][x] = Angle(1)
-                        check(edge, new_field_1)
-                        stack.extend([new_field_1])
-                        extended = True
-                    except AssertionError:
-                        pass
-                    if extended:
-                        return
+        def get_next_pos():
+            not_filled_pos = around_edge & not_filled(field)
+            if not_filled_pos:
+                return not_filled_pos.pop()
+            else:
+                for y, column in enumerate(field):
+                    for x, num in enumerate(column):
+                        if num is None:
+                            return y, x
+            return None, None
+
+        y, x = get_next_pos()
+        if y is x is None:
+            return
+        extended = False
+        new_field_0 = copy.deepcopy(field)
+        new_field_1 = copy.deepcopy(field)
+        try:
+            new_field_0[y][x] = Angle(0)
+            check(edge, new_field_0)
+            stack.extend([new_field_0])
+            extended = True
+        except AssertionError:
+            pass
+        try:
+            new_field_1[y][x] = Angle(1)
+            check(edge, new_field_1)
+            stack.extend([new_field_1])
+            extended = True
+        except AssertionError:
+            pass
+        if extended:
+            return
 
     while any(None in y for y in field):
-        while match(edge, field):
-            pass
-        if not any(None in y for y in field):
-            break
-        new_stack()
         if stack:
             field = stack.pop()
+        while match(edge, field):
+            pass
+        new_stack()
 
     return field
 
 
 if __name__ == "__main__":
     size = int(input("size of board: "))
-    edge = [list(map(int, input(f"{n}th line").replace(" ", "5"))) for n in range(size + 1)]
+    edge = [
+        list(map(int, input(f"{n}th line").replace(" ", "5")))
+        for n in range(size + 1)
+    ]
     field = solve(edge)
     pretty_print(field)
