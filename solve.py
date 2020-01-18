@@ -16,17 +16,42 @@ def check(edge, field):
 
     def check_joint():
         joint_count = [[0 for _ in range(len(edge))] for _ in range(len(edge))]
+        filled_count = [[0 for _ in range(len(edge))] for _ in range(len(edge))]
         for y, column in enumerate(field):
             for x, angle in enumerate(column):
                 if angle is Angle.RIGHT_UP:
                     joint_count[y + 1][x] += 1
                     joint_count[y][x + 1] += 1
+                    for x_offset, y_offset in ((1, 0), (0, 0), (0, 1), (1, 1)):
+                        filled_count[y+y_offset][x+x_offset] += 1
                 elif angle is Angle.LEFT_UP:
                     joint_count[y][x] += 1
                     joint_count[y + 1][x + 1] += 1
+                    for x_offset, y_offset in ((1, 0), (0, 0), (0, 1), (1, 1)):
+                        filled_count[y+y_offset][x+x_offset] += 1
         for y, (real_y, max_y) in enumerate(zip(joint_count, edge)):
             for x, (real_x, max_x) in enumerate(zip(real_y, max_y)):
-                assert real_x <= max_x
+                if y in (0, len(edge)):
+                    if x in (0, len(edge)):
+                        if filled_count[y][x] == 1:
+                            if max_x <= 4:
+                                assert real_x == max_x
+                        else:
+                            assert real_x <= max_x
+                    else:
+                        if filled_count[y][x] == 2:
+                            if max_x <= 4:
+                                assert real_x == max_x
+                        else:
+                            assert real_x <= max_x
+                elif x in (0, len(edge)):
+                    if filled_count[y][x] == 2:
+                        if max_x <= 4:
+                            assert real_x == max_x
+                    else:
+                        assert real_x <= max_x
+                else:
+                    assert real_x <= max_x
 
     def check_loop():
         route = defaultdict(set)
@@ -202,3 +227,4 @@ if __name__ == "__main__":
     ]
     field = solve(edge)
     pretty_print(field)
+    check(edge, field)
